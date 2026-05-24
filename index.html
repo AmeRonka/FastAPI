@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moje notatki</title>
+    <style>
+        body { font-family: sans-serif; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+        h1 { color: #333; }
+        input, textarea { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+        button { padding: 8px 14px; margin: 3px; cursor: pointer; }
+        .note { border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin: 10px 0; }
+        .note h3 { margin: 0 0 8px 0; }
+        .note p { white-space: pre-wrap; color: #444; }
+        .summary { background: #eef6ff; padding: 10px; border-radius: 6px; margin-top: 10px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <h1>Moje notatki</h1>
+
+    <div>
+        <input type="text" id="title" placeholder="Tytuł notatki">
+        <textarea id="content" rows="4" placeholder="Treść notatki"></textarea>
+        <button onclick="createNote()">Dodaj notatkę</button>
+    </div>
+    <div>
+        <input type="text" id="search" placeholder="Szukaj w notatkach..." oninput="loadNotes()">
+    </div>
+    <hr>
+    <div id="notes"></div>
+
+    <script>
+        const API = "";  // ten sam serwer, więc adres pusty
+
+        // Pobierz i wyświetl wszystkie notatki
+        async function loadNotes() {
+            const search = document.getElementById("search").value;
+            const url = search ? API + "/notes?search=" + encodeURIComponent(search) : API + "/notes";
+            const res = await fetch(url);
+            const notes = await res.json();
+            const container = document.getElementById("notes");
+            container.innerHTML = "";
+            notes.forEach(note => {
+                const div = document.createElement("div");
+                div.className = "note";
+
+                const h3 = document.createElement("h3");
+                h3.textContent = note.title;
+
+                const p = document.createElement("p");
+                p.textContent = note.content;
+
+                const editBtn = document.createElement("button");
+                editBtn.textContent = "Edytuj";
+                editBtn.onclick = () => startEdit(div, note);
+
+                const sumBtn = document.createElement("button");
+                sumBtn.textContent = "Streść (AI)";
+                sumBtn.onclick = () => summarize(note.id);
+
+                const delBtn = document.createElement("button");
+                delBtn.textContent = "Usuń";
+                delBtn.onclick = () => deleteNote(note.id);
+
+                const summaryDiv = document.createElement("div");
+                summaryDiv.className = "summary";
+                summaryDiv.id = "summary-" + note.id;
+                summaryDiv.style.display = "none";
+
+                div.append(h3, p, editBtn, sumBtn, delBtn, summaryDiv);
+                container.appendChild(div);
+            });
+        }
+
+        // Utwórz nową notatkę
+        async function createNote() {
+            const title = document.getElementById("title").value;
+            const content = document.getElementById("content").value;
+            if (!title || !content) { alert("Wpisz tytuł i treść"); return; }
+            await fetch(API + "/notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title, content })
+            });
+            document.getElementById("title").value = "";
+            document.getElementById("content").value = "";
+            loadNotes();
+        }
+
+        // Usuń notatkę
+        async function deleteNote(id) {
+            await fetch(API + "/notes/" + id, { method: "DELETE" });
+            loadNotes();
+        }
+
+        // Streść notatkę przez AI
+        async function summarize(id) {
+            const box = document.getElementById("summary-" + id);
+            box.style.display = "block";
+            box.textContent = "Streszczam...";
+            const res = await fetch(API + "/notes/" + id + "/summarize", { method: "POST" });
+            const data = await res.json();
+            box.textContent = "Streszczenie: " + data.summary;
+        }
+
+        function startEdit(div, note) {
+            div.innerHTML = "";
+
+            const titleInput = document.createElement("input");
+            titleInput.type = "text";
+            titleInput.value = note.title;
+
+            const contentInput = document.createElement("textarea");
+            contentInput.rows = 6;
+            contentInput.value = note.content;
+
+            const saveBtn = document.createElement("button");
+            saveBtn.textContent = "Zapisz";
+            saveBtn.onclick = async () => {
+                await fetch(API + "/notes/" + note.id, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title: titleInput.value, content: contentInput.value })
+                });
+                loadNotes();
+            };
+
+            const cancelBtn = document.createElement("button");
+            cancelBtn.textContent = "Anuluj";
+            cancelBtn.onclick = () => loadNotes();
+
+            div.append(titleInput, contentInput, saveBtn, cancelBtn);
+        }
+
+        loadNotes();  // załaduj notatki przy otwarciu strony
+    </script>
+</body>
+</html>
