@@ -1,5 +1,13 @@
 .venv/
-notes.db
 __pycache__/
-.env
 .idea/
+
+# backend
+backend/.env
+backend/notes.db
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local

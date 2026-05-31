@@ -1,22 +1,26 @@
+import truststore
+truststore.inject_into_ssl()
+
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import SQLModel, Field, Session, create_engine, select
 import os
 from dotenv import load_dotenv
 from google import genai
-from fastapi.responses import FileResponse
-from sqlmodel import or_
-from sqlmodel import SQLModel, Field, Session, create_engine, select, or_, func
 
 
-load_dotenv()  # wczytuje zmienne z pliku .env
+load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = FastAPI()
 
-
-@app.get("/")
-def serve_frontend():
-    return FileResponse("index.html")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class Note(SQLModel, table=True):
@@ -48,13 +52,6 @@ def create_note(note: NoteCreate):
         return new_note
 
 
-'''@app.get("/notes", response_model=list[Note])
-def get_notes():
-    with Session(engine) as session:
-        notes = session.exec(select(Note)).all()
-        return notes'''
-
-
 @app.get("/notes", response_model=list[Note])
 def get_notes(search: str | None = None):
     with Session(engine) as session:
@@ -66,6 +63,7 @@ def get_notes(search: str | None = None):
                 if s in n.title.lower() or s in n.content.lower()
             ]
         return notes
+
 
 @app.get("/notes/{note_id}", response_model=Note)
 def get_note(note_id: int):
@@ -99,6 +97,7 @@ def delete_note(note_id: int):
         session.delete(note)
         session.commit()
         return {"message": "Notatka usunięta"}
+
 
 @app.post("/notes/{note_id}/summarize")
 def summarize_note(note_id: int):

@@ -1,25 +1,37 @@
-# Notes API — FastAPI
+# Notes — FastAPI + React
 
-A full-stack notes application built with FastAPI. It provides a REST API with full CRUD operations, persistent storage in SQLite, case-insensitive search, and AI-powered note summarization using Google's Gemini model. A simple HTML/JavaScript frontend lets you manage notes directly in the browser.
+A full-stack notes application: a Python REST API powered by FastAPI on the backend, a React + TypeScript single-page app on the frontend, and Google's Gemini model for AI-powered note summarization.
 
-This project was built to learn full-stack web development with FastAPI, including REST API design, database integration through an ORM, and connecting an application to an external large language model.
+This project was built to learn full-stack web development end-to-end: REST API design, ORM-backed persistence, integrating an external large language model, and consuming the API from a modern, typed React frontend.
 
 ## Features
 
 - **CRUD operations** — create, read, update, and delete notes
-- **REST API** — clean endpoints following REST conventions, with automatic interactive documentation (Swagger UI)
-- **Database persistence** — notes are stored in SQLite via the SQLModel ORM, so they survive server restarts
-- **Search** — filter notes by title or content, case-insensitive and works with Polish characters
-- **AI summarization** — an endpoint that sends a note's content to the Gemini model and returns a short summary
-- **Frontend** — a single-page HTML/JavaScript interface that talks to the API using `fetch`
+- **REST API** — clean endpoints with automatic interactive documentation (Swagger UI)
+- **Database persistence** — notes are stored in SQLite via the SQLModel ORM
+- **Search** — filter notes by title or content, case-insensitive and Polish-character aware
+- **AI summarization** — an endpoint sends a note's content to Gemini and returns a short summary
+- **Typed frontend** — React + TypeScript SPA with debounced search, inline editing, and dark-mode-aware Tailwind styling
+- **Symmetric typing** — Pydantic models on the backend mirror TypeScript types on the frontend
 
 ## Tech stack
 
-- FastAPI (Python web framework)
-- SQLModel (ORM, built on SQLAlchemy and Pydantic)
-- SQLite (database)
-- Google Gemini API (AI summarization)
-- HTML + JavaScript (frontend)
+**Backend:** FastAPI · SQLModel · SQLite · Google Gemini API · python-dotenv · truststore
+**Frontend:** React 19 · TypeScript · Vite · Tailwind CSS v4
+
+## Architecture
+
+Two independent apps connected by HTTP/JSON. In development they run on separate ports (Vite on 5173, FastAPI on 8000) with CORS enabled. For a single-server deployment, the frontend can be built to static files and served by FastAPI.
+
+```
+frontend/   React + TypeScript SPA (Vite)
+   │
+   │  fetch + JSON
+   ▼
+backend/    FastAPI REST API
+   │
+   ▼   SQLite + Gemini API
+```
 
 ## API endpoints
 
@@ -32,60 +44,81 @@ This project was built to learn full-stack web development with FastAPI, includi
 | DELETE | `/notes/{id}` | Delete a note |
 | POST | `/notes/{id}/summarize` | Summarize a note using AI |
 
+Interactive docs at `http://127.0.0.1:8000/docs` while the backend is running.
+
 ## Getting started
 
 ### Prerequisites
 
-- Python 3.10 or newer
+- Python 3.10+
+- Node.js 20+
 - A free Gemini API key from [Google AI Studio](https://aistudio.google.com)
 
 ### Setup
 
-1. Clone the repository and enter the folder:
+1. Clone the repository:
 
    ```
    git clone https://github.com/AmeRonka/FastAPI.git
    cd FastAPI
    ```
 
-2. Create and activate a virtual environment:
+2. Set up the backend:
 
    ```
    python -m venv .venv
-   .venv\Scripts\activate        # Windows
-   source .venv/bin/activate      # macOS / Linux
+   .venv\Scripts\activate            # Windows
+   source .venv/bin/activate         # macOS / Linux
+   pip install fastapi uvicorn sqlmodel google-genai python-dotenv truststore
    ```
 
-3. Install the dependencies:
-
-   ```
-   pip install fastapi uvicorn sqlmodel google-genai python-dotenv
-   ```
-
-4. Create a `.env` file in the project root and add your Gemini API key:
+3. Create `backend/.env` with your Gemini API key:
 
    ```
    GEMINI_API_KEY=your_key_here
    ```
 
-   The `.env` file is excluded from version control, so the key never gets committed.
-
-5. Run the server:
+4. Install frontend dependencies:
 
    ```
-   uvicorn main:app --reload
+   cd frontend
+   npm install
+   cd ..
    ```
 
-6. Open the app in your browser:
+### Running
 
-   - Frontend: `http://127.0.0.1:8000`
-   - Interactive API docs: `http://127.0.0.1:8000/docs`
+Open two terminals.
+
+**Terminal 1 — backend** (`http://127.0.0.1:8000`):
+
+```
+cd backend
+uvicorn main:app --reload
+```
+
+**Terminal 2 — frontend** (`http://localhost:5173`):
+
+```
+cd frontend
+npm run dev
+```
+
+Open `http://localhost:5173` in your browser.
+
+### Why `truststore`?
+
+The backend uses `truststore.inject_into_ssl()` at the top of `main.py`. This tells Python to verify HTTPS certificates against the operating system's trust store instead of Python's bundled `certifi` bundle. It's needed on machines where antivirus software or a corporate proxy performs SSL inspection — without it, the Gemini API call fails with `CERTIFICATE_VERIFY_FAILED`. On a clean machine it's a no-op.
 
 ## What I learned
 
 - Designing a REST API with proper HTTP methods and status codes
 - Using an ORM to map Python objects to database tables instead of writing raw SQL
 - Validating request data automatically with Pydantic models
-- Keeping secrets (API keys) out of source control with environment variables
+- Keeping API keys out of source control with environment variables
 - Connecting a web application to an external LLM and handling its responses
-- How a frontend communicates with a backend over HTTP using JSON
+- Building a React SPA with TypeScript, including custom hooks, state lifting, and prop typing
+- Configuring Vite as a dev tool with hot module reload and a production build step
+- Mirroring backend Pydantic schemas as TypeScript types for end-to-end type safety
+- Configuring CORS to allow a separate-origin frontend to call the API in development
+- Diagnosing SSL certificate-verification errors in Python and using `truststore` to bridge the OS trust store
